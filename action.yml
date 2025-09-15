@@ -1,20 +1,20 @@
-name: 'Manifest PR handler'
-description: 'Handles manifest PR related tasks'
+name: 'NCS toolchain install action'
+description: 'This action installs proper toolchain for sdk-nrf'
 inputs:
   working-directory:
     required: false
     type: string
-    default: ncs
-    description: 'working directory where sdk-nrf is cloned'
+    default: ncs/nrf
+    description: 'Working directory where sdk-nrf repo is available'
   cache:
     required: false
     type: boolean
     default: true
     description: 'Enable caching of toolchain bundle'
-  outputs:
-    toolchain-bundle-id:
-      description: 'The installed toolchain bundle ID'
-      value: ${{ steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_ID }}
+outputs:
+  toolchain-bundle-id:
+    description: 'The installed toolchain bundle ID'
+    value: ${{ steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_ID }}
 
 runs:
   using: "composite"
@@ -43,11 +43,11 @@ runs:
       id: set-tb-id
       run: |
           if [ "${{ runner.os }}" = "macOS" ]; then
-            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-aarch64-macos-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-aarch64-macos-$(./scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
           elif [ "${{ runner.os }}" = "Windows" ]; then
-            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-windows-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-windows-$(./scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
           elif [ "${{ runner.os }}" = "Linux" ]; then
-            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-linux-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-linux-$(./scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
           fi
       shell: bash
 
@@ -82,7 +82,7 @@ runs:
     
     - name: Return toolchain bundle ID
       working-directory: ${{ inputs.working-directory }}
-      run: echo "TOOLCHAIN_BUNDLE_ID=$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+      run: echo "TOOLCHAIN_BUNDLE_ID=$(./scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
       shell: bash
 
 
