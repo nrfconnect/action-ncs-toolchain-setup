@@ -61,6 +61,7 @@ runs:
     - name: Download toolchain bundle if not cached
       if: steps.restore-cached-tb.outputs.cache-hit != 'true'
       run: curl -SLO https://files.nordicsemi.com/artifactory/NCS/external/bundles/v3/${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+      shell: bash
 
     - name: Save toolchain bundle to cache
       if: steps.restore-cached-tb.outputs.cache-hit != 'true'
