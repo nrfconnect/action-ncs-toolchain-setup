@@ -1,0 +1,89 @@
+name: 'Manifest PR handler'
+description: 'Handles manifest PR related tasks'
+inputs:
+  working-directory:
+    required: false
+    type: string
+    default: ncs
+    description: 'working directory where sdk-nrf is cloned'
+  cache:
+    required: false
+    type: boolean
+    default: true
+    description: 'Enable caching of toolchain bundle'
+  outputs:
+    toolchain-bundle-id:
+      description: 'The installed toolchain bundle ID'
+      value: ${{ steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_ID }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install nrfutil and toolchain manager
+      run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            NRFUTIL_LOCATION="x86_64-pc-windows-msvc/nrfutil.exe"
+            curl -sSLO "https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/$NRFUTIL_LOCATION"
+            ./nrfutil.exe install sdk-manager
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            NRFUTIL_LOCATION="universal-apple-darwin/nrfutil"
+            wget -q "https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/$NRFUTIL_LOCATION"
+            sudo chmod +x nrfutil
+            ./nrfutil install sdk-manager
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            NRFUTIL_LOCATION="x86_64-unknown-linux-gnu/nrfutil"
+            curl -sSLO "https://files.nordicsemi.com/artifactory/swtools/external/nrfutil/executables/$NRFUTIL_LOCATION"
+            chmod +x nrfutil
+            ./nrfutil install sdk-manager
+          fi
+      shell: bash
+
+    - name: Find proper toolchain bundle name
+      working-directory: ${{ inputs.working-directory }}
+      id: set-tb-id
+      run: |
+          if [ "${{ runner.os }}" = "macOS" ]; then
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-aarch64-macos-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" = "Windows" ]; then
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-windows-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+          elif [ "${{ runner.os }}" = "Linux" ]; then
+            echo "TOOLCHAIN_BUNDLE_NAME=ncs-toolchain-x86_64-linux-$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+          fi
+      shell: bash
+
+    - name: Restore toolchain bundle from cache
+      id: restore-cached-tb
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+        key: ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+
+    - name: Download toolchain bundle if not cached
+      if: steps.restore-cached-tb.outputs.cache-hit != 'true'
+      run: curl -SLO https://files.nordicsemi.com/artifactory/NCS/external/bundles/v3/${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+
+    - name: Save toolchain bundle to cache
+      if: steps.restore-cached-tb.outputs.cache-hit != 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+        key: ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+
+    - name: Install proper toolchain bundle
+      run: |
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            ./nrfutil.exe sdk-manager toolchain install --toolchain-bundle ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+          elif [ "${{ runner.os }}" = "macOS" ]; then
+            sudo ./nrfutil sdk-manager toolchain install --toolchain-bundle ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+          else
+            ./nrfutil sdk-manager toolchain install --toolchain-bundle ${{steps.set-tb-id.outputs.TOOLCHAIN_BUNDLE_NAME}}
+          fi
+      shell: bash
+    
+    - name: Return toolchain bundle ID
+      working-directory: ${{ inputs.working-directory }}
+      run: echo "TOOLCHAIN_BUNDLE_ID=$(./nrf/scripts/print_toolchain_checksum.sh).tar.gz" >> $GITHUB_OUTPUT
+      shell: bash
+
+
+
